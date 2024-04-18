@@ -26,7 +26,8 @@ def importJSONToMongoDB():\
     for (root, dirs, file) in os.walk(path):
         for f in file:
             #importing
-            with open('data.json') as file:
+            file_path = os.path.join(root, f)
+            with open(file_path, 'r') as file:
                 file_data = json.load(file)
             # Inserting the loaded data in the collection
             # if JSON contains data more than one entry
