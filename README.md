@@ -96,11 +96,12 @@ In Python you can also traverse a directory's contents, item by item:
 ```
 import os
 
-path = "data"
+directory = "data"
 
-for (root, dirs, file) in os.walk(path):
-    for f in file:
-        print(f)
+for filename in os.listdir(directory):
+  with open(os.path.join(directory, filename)) as f:
+    print(f)
+    # do other things with f
 ```
 
 ## 5. Importing
@@ -129,17 +130,25 @@ To import a single JSON file into MongoDB using `pymongo` in a Python script use
 ```
 # assuming you have defined a connection to your db and collection already:
 
-# Loading or Opening the json file
-with open('data.json') as file:
-    file_data = json.load(file)
+    # Loading or Opening the json file
+    try:
+      file_data = json.load(f)
+    except Exception as e:
+      print(e, "error when loading", f)
      
 # Inserting the loaded data in the collection
 # if JSON contains data more than one entry
 # insert_many is used else insert_one is used
-if isinstance(file_data, list):
-    collection.insert_many(file_data)  
-else:
-    collection.insert_one(file_data)
+    if isinstance(file_data, list):
+      try:
+        collection.insert_many(file_data)
+      except Exception as e:
+        print(e, "when importing into Mongo")
+    else:
+      try:
+        collection.insert_one(file_data)
+      except Exception as e:
+        print(e)
 ```
 
 - [`pymongo` documentation](https://pymongo.readthedocs.io/en/stable/)
