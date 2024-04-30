@@ -1,58 +1,53 @@
 #!/usr/bin/env python3
 from pymongo import MongoClient, errors
-from bson.json_util import dumps
 import os
 import json
 
-#script functionality
-def importJSONToMongoDB():\
-    #variables to update count.txt
+def importJSONToMongoDB():
     totalImported = 0
-    totalOrphaned = 0 #in count.txt its orphaned but how do I check that?
+    totalOrphaned = 0
     totalCorrupted = 0
+    dupeKeyError = 0 #counter for dupe key exception
 
-    #connecting to mongoDB atlas
     MONGOPASS = os.getenv('MONGOPASS')
-    #uri = "mongodb+srv://cluster0.pnxzwgz.mongodb.net/"
-    client = MongoClient(MONGOPASS, connectTimeoutMS=200, retryWrites=True) #The original arguments from the instructions not needed because $MONGOPASS includes uri, user, and pass
-    # specify a database
+    client = MongoClient(MONGOPASS, connectTimeoutMS=200, retryWrites=True)
     db = client.rqd3qmk
-    # specify a collection
     collection = db.records
 
-    #listing directory contents
     path = "data"
 
-    for (root, dirs, file) in os.walk(path):
-        try:
-            for f in file:
-                #importing
-                file_path = os.path.join(root, f)
+    for (root, dirs, files) in os.walk(path):
+        for f in files:
+            file_path = os.path.join(root, f)
+            try:
                 with open(file_path, 'r') as file:
                     file_data = json.load(file)
-                # Inserting the loaded data in the collection
-                # if JSON contains data more than one entry
-                # insert_many is used else insert_one is used
+                for doc in file_data:
+                    try:
+                        #manually check which files are getting processed to see where these missing 5 records are
+                        print(f"Processing document with _id: {doc.get('_id', 'No ID found')} in file: {f}")
+                        collection.insert_one(doc)
+                        totalImported += 1
+                    except errors.DuplicateKeyError as e:
+                        #I was getting a duplicate key error when running so added exception. Should honestly be only getting these when not clearing the collection after?
+                        print(f"dupe key error {f}: {str(e)}")
+                        dupeKeyError += 1
+            except json.JSONDecodeError as e:
+                print(f"Corrupted record {f}: {str(e)}")
+                totalCorrupted += 1
+                #orphaned records are the remaining records in corrupted files
                 if isinstance(file_data, list):
-                    collection.insert_many(file_data)
-                    totalImported += len(file_data)
-                else:
-                    collection.insert_one(file_data)
-                    totalImported += 1
-        #error handling
-        #corrupted documents exist in the fileset
-        except json.JSONDecodeError:
-            totalCorrupted += 1
-        #complete documents could not be imported
-        except Exception as e:
-            print(f"Failed to import {filename}: {str(e)}")
-            totalOrphaned += 1
+                    totalOrphaned += (len(file_data) - totalCorrupted)
+            except Exception as e:
+                print(f"Other error: Failed to import {f}: {str(e)}")
+                #totalOrphaned += 1 #assuming these are the orphaned documents
 
     print(f"Total Imported: {totalImported}")
     print(f"Total Orphaned: {totalOrphaned}")
     print(f"Total Corrupted: {totalCorrupted}")
+    print(f"Total dupeKeyErrors: {dupeKeyError}")
 
-
-#script execution
 if __name__ == '__main__':
     importJSONToMongoDB()
+
+#total is 295 records? so missing 5
