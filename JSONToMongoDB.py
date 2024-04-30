@@ -22,10 +22,10 @@ def importJSONToMongoDB():
             try:
                 with open(file_path, 'r') as file:
                     file_data = json.load(file)
-                for doc in file_data:
+                for doc in file_data: #parse through the actual records in the .json file so I dont have to use insert_many. I switched to this because of the missing orphaned records but I was overthinking the solution.
                     try:
-                        #manually check which files are getting processed to see where these missing 5 records are
-                        print(f"Processing document with _id: {doc.get('_id', 'No ID found')} in file: {f}")
+                        #manually check which files are getting processed to see where these missing 5 records are. (not neccessary anymore)
+                        #print(f"Processing document with _id: {doc.get('_id', 'No ID found')} in file: {f}")
                         collection.insert_one(doc)
                         totalImported += 1
                     except errors.DuplicateKeyError as e:
